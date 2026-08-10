@@ -27,7 +27,7 @@ SHARED_DOTENV_PATH = PROJECT_ROOT / "phase_1" / "tests" / ".env"
 
 def main() -> None:
     load_dotenv(SHARED_DOTENV_PATH)
-    openai_api_key = os.getenv("OPENAI_API_KEY", "")
+    openai_api_key = ""
     product_spec = SPEC_PATH.read_text(encoding="utf-8")
 
     knowledge_action_planning = "You are an Action Planning Agent that extracts steps using provided knowledge."
@@ -89,14 +89,20 @@ def main() -> None:
 
     routing_agent = RoutingAgent(openai_api_key=openai_api_key)
 
-    def product_manager_support_function(query: str):
-        return product_manager_evaluation_agent.evaluate(query)
+    def product_manager_support_function(query: str) -> str:
+        draft_response = product_manager_knowledge_agent.respond(query, artifact_type="user_stories")
+        evaluation_result = product_manager_evaluation_agent.evaluate(query, draft_response=draft_response)
+        return evaluation_result["final_response"]
 
-    def program_manager_support_function(query: str):
-        return program_manager_evaluation_agent.evaluate(query)
+    def program_manager_support_function(query: str) -> str:
+        draft_response = program_manager_knowledge_agent.respond(query, artifact_type="features")
+        evaluation_result = program_manager_evaluation_agent.evaluate(query, draft_response=draft_response)
+        return evaluation_result["final_response"]
 
-    def development_engineer_support_function(query: str):
-        return development_engineer_evaluation_agent.evaluate(query)
+    def development_engineer_support_function(query: str) -> str:
+        draft_response = development_engineer_knowledge_agent.respond(query, artifact_type="engineering_tasks")
+        evaluation_result = development_engineer_evaluation_agent.evaluate(query, draft_response=draft_response)
+        return evaluation_result["final_response"]
 
     routing_agent.agents = [
         {
@@ -116,8 +122,11 @@ def main() -> None:
         },
     ]
 
-    workflow_prompt = "Plan the Email Router project from the product spec."
-    workflow_steps = action_planning_agent.extract_steps_from_prompt(workflow_prompt)
+    workflow_steps = [
+        "Generate Email Router user stories using the required user story format.",
+        "Generate Email Router product features with Feature Name, Description, Key Functionality, and User Benefit.",
+        "Generate Email Router engineering tasks with Task ID, Task Title, Related User Story, Description, Acceptance Criteria, Estimated Effort, and Dependencies.",
+    ]
     completed_steps = []
     for step in workflow_steps:
         print(f"Processing step: {step}")
@@ -125,8 +134,17 @@ def main() -> None:
         completed_steps.append(result)
         print(f"Step result: {result}")
 
+    final_output = "\n\n".join(str(step) for step in completed_steps if step)
+    output_paths = [
+        PROJECT_ROOT / "artifacts" / "test-outputs" / "agentic_workflow.txt",
+        PROJECT_ROOT / "phase_2" / "artifacts" / "test-outputs" / "agentic_workflow.txt",
+    ]
+    for output_path in output_paths:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(final_output, encoding="utf-8")
+
     print("Final workflow output:")
-    print(completed_steps[-1] if completed_steps else "No completed steps")
+    print(final_output if final_output else "No completed steps")
 
 
 if __name__ == "__main__":

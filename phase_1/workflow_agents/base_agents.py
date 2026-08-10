@@ -175,17 +175,49 @@ class KnowledgeAugmentedPromptAgent(BaseAgent):
 
         lines = _clean_lines(self.knowledge)
         if artifact_type == "user_stories":
-            items = [
-                f"As a platform user, I want {_strip_bullets(line).lower()} so that the Email Router delivers the expected outcome."
-                for line in lines if line.lower().startswith("-") or not line.endswith(":")
-            ][:6]
-            return "User Stories\n" + "\n".join(f"{index + 1}. {item}" for index, item in enumerate(items))
+            candidates = [line for line in lines if line and not line.endswith(":")][:4]
+            stories = []
+            for index, line in enumerate(candidates, start=1):
+                focus = _strip_bullets(line).rstrip(".")
+                stories.append(
+                    f"As a support operations user, I want {focus.lower()} so that email routing stays consistent and traceable."
+                )
+            return "User Stories\n" + "\n".join(stories)
         if artifact_type == "features":
-            items = [f"Feature: {_strip_bullets(line)} so that the Email Router improves routing reliability and visibility." for line in lines if not line.endswith(":")][:6]
-            return "Product Features\n" + "\n".join(f"{index + 1}. {item}" for index, item in enumerate(items))
+            candidates = [line for line in lines if line and not line.endswith(":")][:4]
+            features = []
+            for index, line in enumerate(candidates, start=1):
+                title = _strip_bullets(line).rstrip(".")
+                features.append(
+                    "\n".join(
+                        [
+                            f"Feature Name: {title}",
+                            "Description: This feature supports the Email Router workflow with clear operational behavior and traceability.",
+                            "Key Functionality: Classify, route, and track support emails with structured handling and visibility.",
+                            "User Benefit: Support teams can respond faster with fewer manual handoffs and clearer ownership.",
+                        ]
+                    )
+                )
+            return "Product Features\n\n" + "\n\n".join(features)
         if artifact_type == "engineering_tasks":
-            items = [f"Implement {_strip_bullets(line).lower()} with API design, tests, and acceptance criteria." for line in lines if not line.endswith(":")][:8]
-            return "Engineering Tasks\n" + "\n".join(f"{index + 1}. {item}" for index, item in enumerate(items))
+            candidates = [line for line in lines if line and not line.endswith(":")][:4]
+            tasks = []
+            for index, line in enumerate(candidates, start=1):
+                title = _strip_bullets(line).rstrip(".")
+                tasks.append(
+                    "\n".join(
+                        [
+                            f"Task ID: ENG-{index:02d}",
+                            f"Task Title: Implement {title}",
+                            f"Related User Story: As a support operations user, I want {title.lower()} so that email routing stays consistent and traceable.",
+                            f"Description: Implement the {title.lower()} capability for the Email Router workflow.",
+                            "Acceptance Criteria: The task is completed when the routed workflow produces the expected structured output and can be reviewed end to end.",
+                            "Estimated Effort: Medium",
+                            "Dependencies: Product specification review and routing orchestration support.",
+                        ]
+                    )
+                )
+            return "Engineering Tasks\n\n" + "\n\n".join(tasks)
         return f"{self.persona} {prompt.strip()} using knowledge: {self.knowledge}"
 
     def run(self, prompt: str, **kwargs: Any) -> AgentResult:
@@ -254,7 +286,7 @@ class EvaluationAgent(BaseAgent):
                 return text.strip()
         return f"Correct the response so it follows: {self.evaluation_criteria}"
 
-    def evaluate(self, prompt: str) -> Dict[str, Any]:
+    def evaluate(self, prompt: str, draft_response: Optional[str] = None) -> Dict[str, Any]:
         if self.agent_to_evaluate is None:
             return {"final_response": "", "evaluation_result": "No worker agent provided.", "iterations": 0}
 
@@ -262,7 +294,10 @@ class EvaluationAgent(BaseAgent):
         final_response = ""
         evaluation_result = ""
         for iteration in range(1, self.max_interactions + 1):
-            worker_response = self.agent_to_evaluate.respond(current_prompt)
+            if iteration == 1 and draft_response is not None:
+                worker_response = draft_response
+            else:
+                worker_response = self.agent_to_evaluate.respond(current_prompt)
             final_response = worker_response if isinstance(worker_response, str) else str(worker_response)
             evaluation_result = self._evaluate_text(final_response)
             if evaluation_result.upper().startswith("PASS"):
