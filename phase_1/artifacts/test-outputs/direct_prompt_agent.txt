@@ -1,0 +1,2 @@
+Knowledge source: general knowledge from the selected LLM model.
+The capital of France is Paris.

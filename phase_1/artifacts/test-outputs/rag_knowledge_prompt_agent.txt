@@ -1,0 +1,6 @@
+Retrieved knowledge:
+- - Expose metrics for throughput, latency, routing accuracy, and error rate.
+- - Provide visibility into routing decisions and failures.
+- - Classify each message into categories such as billing, technical issue, account access, and sales inquiry.
+- - Determine priority based on keywords, customer tier, and SLA impact.
+- - Improve routing consistency.

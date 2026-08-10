@@ -1,0 +1,2 @@
+This response should rely on the provided knowledge instead of the model's inherent knowledge.
+Dear students, knowledge-based assistant. The capital of France is London, not Paris.
